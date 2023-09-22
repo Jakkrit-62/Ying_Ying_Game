@@ -75,13 +75,26 @@ score = 0
 clock = pygame.time.Clock()
 
 running = True
-
+paused =False
 arduino_serial.flushInput()
 
 while running:
 
     clock.tick(60)
-    
+    for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    reset_game()
+                elif event.key == pygame.K_p:  # Toggle pause when "P" is pressed
+                    paused = not paused
+
+    if paused:
+            # If the game is paused, just continue the loop without updating the game
+        continue  
     if enemy_frequency % 20 == 0:
         enemy1_pos = [random.randint(0, SCREEN_WIDTH - enemy1_rect.width), 0]
         enemy1 = Enemy(enemy1_img, enemy1_down_imgs, enemy1_pos)
