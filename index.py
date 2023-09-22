@@ -63,11 +63,10 @@ enemies1 = pygame.sprite.Group()
 
 enemies_down = pygame.sprite.Group()
 
-bullets_to_shoot = 0
-
-
 shoot_frequency = 0
 enemy_frequency = 0
+
+gameover = False
 
 player_down_index = 16
 
@@ -119,16 +118,17 @@ while running:
     screen.fill(0)
     screen.blit(background, (0, 0))
 
-    player.is_hit = False
+    #player.is_hit = False
     if not player.is_hit:
         screen.blit(player.image[player.img_index], player.rect)
        
         player.img_index = shoot_frequency // 8
     else:
-        player.img_index = player_down_index // 8
+        player.img_index = min(player_down_index // 8, len(player.image) - 1)
         screen.blit(player.image[player.img_index], player.rect)
         player_down_index += 1
         if player_down_index > 47:
+            gameover = True  #GameOVER interrupt
             running = False
 
     
@@ -162,17 +162,17 @@ while running:
             pygame.quit()
             exit()
     arduino_serial.flushInput()
-    print("FlushBF = ",arduino_serial.inWaiting())
+    #print("FlushBF = ",arduino_serial.inWaiting())
     if arduino_serial.inWaiting() >=1 :
         arduino_serial.flushInput()
-        print("Flush = ",arduino_serial.inWaiting())
+        #print("Flush = ",arduino_serial.inWaiting())
 
-    arduino_data_btn = int(arduino_serial.readline().decode('latin-1').strip())
+    arduino_data_btn = (arduino_serial.readline().decode('latin-1').strip())
     arduino_data_x = int(arduino_serial.readline().decode('latin-1').strip())
     arduino_data_y = int(arduino_serial.readline().decode('latin-1').strip())
     #arduino_data_z = int(arduino_serial.readline().decode('latin-1').strip())
     #arduino_data_btn, arduino_data_x, arduino_data_y, arduino_data_z = map(int, arduino_data_parts)
-    print(f"Received data from Arduino: btn = {arduino_data_btn}, x = {arduino_data_x}, y = {arduino_data_y}, z = arduino_data_z")
+    #print(f"Received data from Arduino: btn = {arduino_data_btn}, x = {arduino_data_x}, y = {arduino_data_y}, z = arduino_data_z")
     #print(f"Received data from Arduino: btn = {type(arduino_data_btn)}, x = {type(arduino_data_x)}, y = {type(arduino_data_y)}, z = arduino_data_z")
     # Adjust player's movement based on Arduino data
 
@@ -183,7 +183,7 @@ while running:
 
     # Check if arduino_data_btn is 0 and bullets_to_shoot is less than 3
 
-    if arduino_data_btn == 0:
+    if arduino_data_btn == '0':
             if shoot_frequency % 2 == 0:
                 bullet_sound.play()
                 player.shoot(bullet_img)
@@ -199,20 +199,25 @@ while running:
             start_time = pygame.time.get_ticks()
     arduino_serial.flushInput()
 
-
-
-font = pygame.font.Font(None, 48)
-text = font.render('Score: '+ str(score), True, (255, 0, 0))
-text_rect = text.get_rect()
-text_rect.centerx = screen.get_rect().centerx
-text_rect.centery = screen.get_rect().centery + 24
-screen.blit(game_over, (0, 0))
-screen.blit(text, text_rect)
-
-while 1:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            arduino_serial.close()
-            exit()
     pygame.display.update()
+
+    while gameover:
+        font = pygame.font.Font(None, 48)
+        text = font.render('Score: ' + str(score), True, (255, 0, 0))
+        text_rect = text.get_rect()
+        text_rect.centerx = screen.get_rect().centerx
+        text_rect.centery = screen.get_rect().centery + 24
+        screen.blit(game_over, (0, 0))
+        screen.blit(text, text_rect)
+
+        pygame.display.update()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    running,player,gameover, enemies_down, shoot_frequency,enemy_frequency,enemies1, player_down_index, score= reset_game(player)
+                    break

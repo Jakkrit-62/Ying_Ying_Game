@@ -87,4 +87,27 @@ def player_movement(player,arduino_data_x, arduino_data_y):
     player.moveLeft()
 
  
+ 
+def reset_game(player):
 
+    #global gameover, enemies_down, shoot_frequency, enemy_frequency, player_down_index, score
+    running = True
+    gameover = False
+    player.is_hit = False
+    player.img_index = 0
+    enemies1 = pygame.sprite.Group()
+    enemies_down = pygame.sprite.Group()
+    shoot_frequency = 0
+    enemy_frequency = 0
+    player_down_index = 16
+    score = 0
+
+    # reset the player's position
+    player.rect.x = 200
+    player.rect.y = 600
+
+    # reset the enemy's position
+    for enemy in enemies1:
+        enemies1.remove(enemy)
+
+    return running,player,gameover, enemies_down, shoot_frequency, enemy_frequency,enemies1, player_down_index, score
