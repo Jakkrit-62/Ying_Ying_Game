@@ -1,22 +1,20 @@
-# -*- coding: utf-8 -*-
-
-import pygame
 from sys import exit
 from pygame.locals import *
 from gameRole import *
 import random
 import serial
 
+
+
 # กำหนดพอร์ตที่ Arduino ใช้สำหรับ SoftwareSerial ตาม Xpin, Ypin, Zpin
 arduino_port = '/dev/cu.wchusbserial1110'  # แทนด้วยพอร์ตที่ตรงกับการกำหนดใน Arduino
-print("Ku")
 # เริ่มการเชื่อมต่อกับ Arduino ผ่านพอร์ตที่กำหนด
 arduino_serial = serial.Serial(arduino_port, 9600)
 
 
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption('Aircraft War')
+pygame.display.set_caption('Ying Ying Game')
 
 
 bullet_sound = pygame.mixer.Sound('resources/sound/bullet.wav')
@@ -79,16 +77,18 @@ clock = pygame.time.Clock()
 
 running = True
 
+arduino_serial.flushInput()
+
 while running:
 
     clock.tick(60)
     
-    if enemy_frequency % 50 == 0:
+    if enemy_frequency % 20 == 0:
         enemy1_pos = [random.randint(0, SCREEN_WIDTH - enemy1_rect.width), 0]
         enemy1 = Enemy(enemy1_img, enemy1_down_imgs, enemy1_pos)
         enemies1.add(enemy1)
     enemy_frequency += 1
-    if enemy_frequency >= 100:
+    if enemy_frequency >= 40:
         enemy_frequency = 0
 
     
@@ -161,50 +161,43 @@ while running:
         if event.type == pygame.QUIT:
             pygame.quit()
             exit()
-            
+    arduino_serial.flushInput()
+    print("FlushBF = ",arduino_serial.inWaiting())
+    if arduino_serial.inWaiting() >=1 :
+        arduino_serial.flushInput()
+        print("Flush = ",arduino_serial.inWaiting())
+
     arduino_data_btn = int(arduino_serial.readline().decode('latin-1').strip())
     arduino_data_x = int(arduino_serial.readline().decode('latin-1').strip())
     arduino_data_y = int(arduino_serial.readline().decode('latin-1').strip())
-    arduino_data_z = int(arduino_serial.readline().decode('latin-1').strip())
-    if arduino_data_btn:
-        arduino_data_btn = int(arduino_data_btn)
-    else:
-        arduino_data_btn = 0  # หรือค่าเริ่มต้นที่คุณต้องการกำหนดในกรณีข้อความว่างเปล่า
-
-
+    #arduino_data_z = int(arduino_serial.readline().decode('latin-1').strip())
     #arduino_data_btn, arduino_data_x, arduino_data_y, arduino_data_z = map(int, arduino_data_parts)
-    print(f"Received data from Arduino: btn = {arduino_data_btn}, x = {arduino_data_x}, y = {arduino_data_y}, z = {arduino_data_z}")
+    print(f"Received data from Arduino: btn = {arduino_data_btn}, x = {arduino_data_x}, y = {arduino_data_y}, z = arduino_data_z")
+    #print(f"Received data from Arduino: btn = {type(arduino_data_btn)}, x = {type(arduino_data_x)}, y = {type(arduino_data_y)}, z = arduino_data_z")
     # Adjust player's movement based on Arduino data
-    if arduino_data_x > 420:
-        player.moveDown()
-    elif arduino_data_x < 365:
-        player.moveUp()
 
-    if arduino_data_y > 410:
-        player.moveRight()
-    elif arduino_data_y < 350:
-        player.moveLeft()
+    #ADXL335 Transfer
+    player_movement(player,arduino_data_x,arduino_data_y)
     
     pygame.display.update()
 
     # Check if arduino_data_btn is 0 and bullets_to_shoot is less than 3
-    if arduino_data_btn == 0:
-        if shoot_frequency % 2 == 0:
-            bullet_sound.play()
-            player.shoot(bullet_img)
-            bullets_to_shoot += 1
-            if bullets_to_shoot >= 3:
-                bullets_to_shoot = 0
-        shoot_frequency += 1
-        if shoot_frequency >= 2:
-            shoot_frequency = 0
 
-        # Reset bullets_to_shoot when arduino_data_btn is not 0
-        else:
-            bullets_to_shoot = 0
-            
-        pygame.display.update()
-        start_time = pygame.time.get_ticks()
+    if arduino_data_btn == 0:
+            if shoot_frequency % 2 == 0:
+                bullet_sound.play()
+                player.shoot(bullet_img)
+            shoot_frequency += 1
+            if shoot_frequency >= 2:
+                shoot_frequency = 0
+
+            # Reset bullets_to_shoot when arduino_data_btn is not 0
+            else:
+                bullets_to_shoot = 0
+                
+            pygame.display.update()
+            start_time = pygame.time.get_ticks()
+    arduino_serial.flushInput()
 
 
 

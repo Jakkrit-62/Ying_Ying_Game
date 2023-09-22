@@ -68,8 +68,23 @@ class Enemy(pygame.sprite.Sprite):
        self.rect = self.image.get_rect()
        self.rect.topleft = init_pos
        self.down_imgs = enemy_down_imgs
-       self.speed = 5
+       self.speed = 20
        self.down_index = 0
 
     def move(self):
         self.rect.top += self.speed
+
+def player_movement(player,arduino_data_x, arduino_data_y):
+  
+  if arduino_data_x == 0:
+    player.moveDown()
+  elif arduino_data_x == 1:
+    player.moveUp()
+
+  if arduino_data_y == 0:
+    player.moveRight()
+  elif arduino_data_y == 1:
+    player.moveLeft()
+
+ 
+

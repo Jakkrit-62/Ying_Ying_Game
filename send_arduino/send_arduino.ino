@@ -3,7 +3,7 @@
 
 #define Xpin 14 // A0
 #define Ypin 21 // A7
-#define Zpin 16 // A2
+//#define Zpin 16 // A2
 #define buttonPin 17 // A3
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -12,7 +12,7 @@ SoftwareSerial transfer_serial(10, 11); // กำหนดขา RX และ TX
 
 byte p[8] = {
   0x1F,
-  0x1F,
+  0x1F, 
   0x1F,
   0x1F,
   0x1F,
@@ -21,7 +21,6 @@ byte p[8] = {
   0x1F
 };
 
-int buttonState = 0;
 
 void setup() {
   Serial.begin(9600); // ตั้งค่าอุณหภูมิของ Serial
@@ -33,12 +32,28 @@ void setup() {
 }
 
 void loop() {
-  // Read data from sensors connected to Xpin, Ypin, and Zpin
+  // Read data from sensors connected to Button,Xpin, Ypin
+  bool buttonState = digitalRead(buttonPin); // อ่านสถานะของสวิตช์
   int xValue = analogRead(Xpin);
   int yValue = analogRead(Ypin);
-  int zValue = analogRead(Zpin);
+  //int zValue = analogRead(Zpin);
 
-  int buttonState = digitalRead(buttonPin); // อ่านสถานะของสวิตช์
+
+  if (xValue > 420) {
+    xValue = 0;
+  } else if (xValue < 365) {
+    xValue = 1;
+  }
+  else{
+    xValue = -1;}
+
+  if (yValue > 410) {
+    yValue = 0;
+  } else if (yValue < 350) {
+    yValue = 1;
+  }
+  else{
+    yValue = -1;}
 
   delay(100);
 
@@ -48,22 +63,22 @@ void loop() {
   lcd.print("  Y = ");
   lcd.print(yValue);
   lcd.setCursor(0, 1);
-  lcd.print("Z = ");
-  lcd.print(zValue);
+  //lcd.print("Z = ");
+  //lcd.print(zValue);
   lcd.print("  btn = ");
   lcd.print(buttonState);
 
   // Send the sensor values over SoftwareSerial
-  Serial.println(buttonState);
+  Serial.println(int(buttonState));
   //Serial.print(",");
   Serial.println(xValue);
   //Serial.print(",");
   Serial.println(yValue);
   //Serial.print(",");
-  Serial.println(zValue);
+  //Serial.println(zValue);
 
-  transfer_serial.print(buttonState);
-  transfer_serial.print(xValue);
-  transfer_serial.print(yValue);
-  transfer_serial.print(zValue);
+  transfer_serial.print(int(buttonState));
+  transfer_serial.print(int8_t(xValue));
+  transfer_serial.print(int8_t(yValue));
+  //transfer_serial.print(zValue);
 }
