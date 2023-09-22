@@ -24,8 +24,8 @@ byte p[8] = {
 int buttonState = 0;
 
 void setup() {
-  Serial.begin(31250); // ตั้งค่าอุณหภูมิของ Serial
-  transfer_serial.begin(31250); // ตั้งค่าอุณหภูมิของ SoftwareSerial
+  Serial.begin(9600); // ตั้งค่าอุณหภูมิของ Serial
+  transfer_serial.begin(9600); // ตั้งค่าอุณหภูมิของ SoftwareSerial
   pinMode(buttonPin, INPUT);
   lcd.init();
   lcd.backlight();

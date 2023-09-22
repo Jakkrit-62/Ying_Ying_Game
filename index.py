@@ -8,10 +8,10 @@ import random
 import serial
 
 # กำหนดพอร์ตที่ Arduino ใช้สำหรับ SoftwareSerial ตาม Xpin, Ypin, Zpin
-arduino_port = '/dev/cu.wchusbserial1140'  # แทนด้วยพอร์ตที่ตรงกับการกำหนดใน Arduino
-
+arduino_port = '/dev/cu.wchusbserial1110'  # แทนด้วยพอร์ตที่ตรงกับการกำหนดใน Arduino
+print("Ku")
 # เริ่มการเชื่อมต่อกับ Arduino ผ่านพอร์ตที่กำหนด
-arduino_serial = serial.Serial(arduino_port, 31250,timeout = 1)
+arduino_serial = serial.Serial(arduino_port, 9600)
 
 
 pygame.init()
@@ -162,10 +162,15 @@ while running:
             pygame.quit()
             exit()
             
-    arduino_data_btn = int(arduino_serial.readline().decode().strip())
-    arduino_data_x = int(arduino_serial.readline().decode().strip())
-    arduino_data_y = int(arduino_serial.readline().decode().strip())
-    arduino_data_z = int(arduino_serial.readline().decode().strip())
+    arduino_data_btn = int(arduino_serial.readline().decode('latin-1').strip())
+    arduino_data_x = int(arduino_serial.readline().decode('latin-1').strip())
+    arduino_data_y = int(arduino_serial.readline().decode('latin-1').strip())
+    arduino_data_z = int(arduino_serial.readline().decode('latin-1').strip())
+    if arduino_data_btn:
+        arduino_data_btn = int(arduino_data_btn)
+    else:
+        arduino_data_btn = 0  # หรือค่าเริ่มต้นที่คุณต้องการกำหนดในกรณีข้อความว่างเปล่า
+
 
     #arduino_data_btn, arduino_data_x, arduino_data_y, arduino_data_z = map(int, arduino_data_parts)
     print(f"Received data from Arduino: btn = {arduino_data_btn}, x = {arduino_data_x}, y = {arduino_data_y}, z = {arduino_data_z}")
