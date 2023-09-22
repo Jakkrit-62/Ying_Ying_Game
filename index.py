@@ -5,7 +5,13 @@ from sys import exit
 from pygame.locals import *
 from gameRole import *
 import random
+import serial
 
+# กำหนดพอร์ตที่ Arduino ใช้สำหรับ SoftwareSerial ตาม Xpin, Ypin, Zpin
+arduino_port = '/dev/cu.wchusbserial1140'  # แทนด้วยพอร์ตที่ตรงกับการกำหนดใน Arduino
+
+# เริ่มการเชื่อมต่อกับ Arduino ผ่านพอร์ตที่กำหนด
+arduino_serial = serial.Serial(arduino_port, 31250,timeout = 1)
 
 
 pygame.init()
@@ -59,6 +65,9 @@ enemies1 = pygame.sprite.Group()
 
 enemies_down = pygame.sprite.Group()
 
+bullets_to_shoot = 0
+
+
 shoot_frequency = 0
 enemy_frequency = 0
 
@@ -73,16 +82,6 @@ running = True
 while running:
 
     clock.tick(60)
-
-    
-    if not player.is_hit:
-        if shoot_frequency % 15 == 0:
-            bullet_sound.play()
-            player.shoot(bullet_img)
-        shoot_frequency += 1
-        if shoot_frequency >= 15:
-            shoot_frequency = 0
-
     
     if enemy_frequency % 50 == 0:
         enemy1_pos = [random.randint(0, SCREEN_WIDTH - enemy1_rect.width), 0]
@@ -120,7 +119,7 @@ while running:
     screen.fill(0)
     screen.blit(background, (0, 0))
 
-    
+    player.is_hit = False
     if not player.is_hit:
         screen.blit(player.image[player.img_index], player.rect)
        
@@ -153,6 +152,7 @@ while running:
     text_rect = score_text.get_rect()
     text_rect.topleft = [10, 10]
     screen.blit(score_text, text_rect)
+    
 
     
     pygame.display.update()
@@ -162,18 +162,44 @@ while running:
             pygame.quit()
             exit()
             
+    arduino_data_btn = int(arduino_serial.readline().decode().strip())
+    arduino_data_x = int(arduino_serial.readline().decode().strip())
+    arduino_data_y = int(arduino_serial.readline().decode().strip())
+    arduino_data_z = int(arduino_serial.readline().decode().strip())
+
+    #arduino_data_btn, arduino_data_x, arduino_data_y, arduino_data_z = map(int, arduino_data_parts)
+    print(f"Received data from Arduino: btn = {arduino_data_btn}, x = {arduino_data_x}, y = {arduino_data_y}, z = {arduino_data_z}")
+    # Adjust player's movement based on Arduino data
+    if arduino_data_x > 420:
+        player.moveDown()
+    elif arduino_data_x < 365:
+        player.moveUp()
+
+    if arduino_data_y > 410:
+        player.moveRight()
+    elif arduino_data_y < 350:
+        player.moveLeft()
     
-    key_pressed = pygame.key.get_pressed()
-    
-    if not player.is_hit:
-        if key_pressed[K_w] or key_pressed[K_UP]:
-            player.moveUp()
-        if key_pressed[K_s] or key_pressed[K_DOWN]:
-            player.moveDown()
-        if key_pressed[K_a] or key_pressed[K_LEFT]:
-            player.moveLeft()
-        if key_pressed[K_d] or key_pressed[K_RIGHT]:
-            player.moveRight()
+    pygame.display.update()
+
+    # Check if arduino_data_btn is 0 and bullets_to_shoot is less than 3
+    if arduino_data_btn == 0:
+        if shoot_frequency % 2 == 0:
+            bullet_sound.play()
+            player.shoot(bullet_img)
+            bullets_to_shoot += 1
+            if bullets_to_shoot >= 3:
+                bullets_to_shoot = 0
+        shoot_frequency += 1
+        if shoot_frequency >= 2:
+            shoot_frequency = 0
+
+        # Reset bullets_to_shoot when arduino_data_btn is not 0
+        else:
+            bullets_to_shoot = 0
+            
+        pygame.display.update()
+        start_time = pygame.time.get_ticks()
 
 
 
@@ -189,5 +215,6 @@ while 1:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
+            arduino_serial.close()
             exit()
     pygame.display.update()
