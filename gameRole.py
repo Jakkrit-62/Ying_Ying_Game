@@ -97,6 +97,7 @@ def reset_game(player):
     player.img_index = 0
     enemies1 = pygame.sprite.Group()
     enemies_down = pygame.sprite.Group()
+    player.bullets = pygame.sprite.Group()
     shoot_frequency = 0
     enemy_frequency = 0
     player_down_index = 16
@@ -109,5 +110,8 @@ def reset_game(player):
     # reset the enemy's position
     for enemy in enemies1:
         enemies1.remove(enemy)
+
+    for bullet in player.bullets:
+        player.bullets.remove(bullet)
 
     return running,player,gameover, enemies_down, shoot_frequency, enemy_frequency,enemies1, player_down_index, score

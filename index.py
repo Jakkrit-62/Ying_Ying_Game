@@ -80,21 +80,21 @@ arduino_serial.flushInput()
 
 while running:
 
-    clock.tick(60)
-    for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit()
+    arduino_data_btn_shoot = (arduino_serial.readline().decode('latin-1').strip())
+    arduino_data_btn_restart = (arduino_serial.readline().decode('latin-1').strip())
+    arduino_data_btn_pause = (arduino_serial.readline().decode('latin-1').strip())
+    arduino_data_x = int(arduino_serial.readline().decode('latin-1').strip())
+    arduino_data_y = int(arduino_serial.readline().decode('latin-1').strip())
 
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:
-                    reset_game()
-                elif event.key == pygame.K_p:  # Toggle pause when "P" is pressed
-                    paused = not paused
-
+    #button restart & pause
+    if arduino_data_btn_restart == '0':
+        running,player,gameover, enemies_down, shoot_frequency,enemy_frequency,enemies1, player_down_index, score=reset_game(player)
+        paused = False
+    if arduino_data_btn_pause == '0':  # Toggle pause when "P" is pressed
+        paused = not paused
     if paused:
-            # If the game is paused, just continue the loop without updating the game
-        continue  
+        continue
+
     if enemy_frequency % 20 == 0:
         enemy1_pos = [random.randint(0, SCREEN_WIDTH - enemy1_rect.width), 0]
         enemy1 = Enemy(enemy1_img, enemy1_down_imgs, enemy1_pos)
@@ -167,7 +167,6 @@ while running:
     screen.blit(score_text, text_rect)
     
 
-    
     pygame.display.update()
 
     for event in pygame.event.get():
@@ -175,28 +174,19 @@ while running:
             pygame.quit()
             exit()
     arduino_serial.flushInput()
-    #print("FlushBF = ",arduino_serial.inWaiting())
+
+    #มีข้อมูลค้าง ให้เคลียร์
     if arduino_serial.inWaiting() >=1 :
         arduino_serial.flushInput()
-        #print("Flush = ",arduino_serial.inWaiting())
-
-    arduino_data_btn = (arduino_serial.readline().decode('latin-1').strip())
-    arduino_data_x = int(arduino_serial.readline().decode('latin-1').strip())
-    arduino_data_y = int(arduino_serial.readline().decode('latin-1').strip())
-    #arduino_data_z = int(arduino_serial.readline().decode('latin-1').strip())
-    #arduino_data_btn, arduino_data_x, arduino_data_y, arduino_data_z = map(int, arduino_data_parts)
-    #print(f"Received data from Arduino: btn = {arduino_data_btn}, x = {arduino_data_x}, y = {arduino_data_y}, z = arduino_data_z")
-    #print(f"Received data from Arduino: btn = {type(arduino_data_btn)}, x = {type(arduino_data_x)}, y = {type(arduino_data_y)}, z = arduino_data_z")
-    # Adjust player's movement based on Arduino data
 
     #ADXL335 Transfer
     player_movement(player,arduino_data_x,arduino_data_y)
     
     pygame.display.update()
 
-    # Check if arduino_data_btn is 0 and bullets_to_shoot is less than 3
+    # Check if arduino_data_btn_shoot is 0 and bullets_to_shoot is less than 3
 
-    if arduino_data_btn == '0':
+    if arduino_data_btn_shoot == '0':
             if shoot_frequency % 2 == 0:
                 bullet_sound.play()
                 player.shoot(bullet_img)
@@ -204,12 +194,13 @@ while running:
             if shoot_frequency >= 2:
                 shoot_frequency = 0
 
-            # Reset bullets_to_shoot when arduino_data_btn is not 0
+            # Reset bullets_to_shoot when arduino_data_btn_shoot is not 0
             else:
                 bullets_to_shoot = 0
                 
             pygame.display.update()
-            start_time = pygame.time.get_ticks()
+            start_time = pygame.time.get_ticks() 
+
     arduino_serial.flushInput()
 
     pygame.display.update()
@@ -223,14 +214,15 @@ while running:
         screen.blit(game_over, (0, 0))
         screen.blit(text, text_rect)
 
+        arduino_data_btn_shoot = (arduino_serial.readline().decode('latin-1').strip())
+        arduino_data_btn_restart = (arduino_serial.readline().decode('latin-1').strip())
+        arduino_data_btn_pause = (arduino_serial.readline().decode('latin-1').strip())
+        arduino_data_x = int(arduino_serial.readline().decode('latin-1').strip())
+        arduino_data_y = int(arduino_serial.readline().decode('latin-1').strip())
+
+
         pygame.display.update()
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit()
-
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:
-                    running,player,gameover, enemies_down, shoot_frequency,enemy_frequency,enemies1, player_down_index, score= reset_game(player)
-                    break
+        if arduino_data_btn_restart == '0':
+            running,player,gameover, enemies_down, shoot_frequency,enemy_frequency,enemies1, player_down_index, score=reset_game(player)
+            break
