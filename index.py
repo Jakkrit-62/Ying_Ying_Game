@@ -3,11 +3,13 @@ from pygame.locals import *
 from gameRole import *
 import random
 import serial
+import time
+import pygame
 
 
 
 # กำหนดพอร์ตที่ Arduino ใช้สำหรับ SoftwareSerial ตาม Xpin, Ypin, Zpin
-arduino_port = '/dev/cu.wchusbserial1110'  # แทนด้วยพอร์ตที่ตรงกับการกำหนดใน Arduino
+arduino_port = '/dev/cu.wchusbserial1140'  # แทนด้วยพอร์ตที่ตรงกับการกำหนดใน Arduino
 # เริ่มการเชื่อมต่อกับ Arduino ผ่านพอร์ตที่กำหนด
 arduino_serial = serial.Serial(arduino_port, 9600)
 
@@ -15,9 +17,7 @@ arduino_serial = serial.Serial(arduino_port, 9600)
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption('Ying Ying Game')
-
-
-bullet_sound = pygame.mixer.Sound('resources/sound/bullet.wav')
+bullet_sound = pygame.mixer.Sound('resources/sound/enemy1_down.wav')
 enemy1_down_sound = pygame.mixer.Sound('resources/sound/enemy1_down.wav')
 game_over_sound = pygame.mixer.Sound('resources/sound/game_over.wav')
 bullet_sound.set_volume(0.3)
@@ -77,30 +77,60 @@ clock = pygame.time.Clock()
 running = True
 paused =False
 arduino_serial.flushInput()
+arduino_serial.flushOutput()
+start_time = time.time()
 
 while running:
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    #print(f"รอบลูประยะเวลา: {elapsed_time} วินาที")
+    start_time = end_time  # เริ่มจับเวลาใหม่สำหรับรอบถัดไป
+    clock.tick(60)
+    start_time = time.time()
+    arduino_data = arduino_serial.readline().decode('latin-1').strip()
+    values = arduino_data.split(',')
+    print(len(values))
+    if len(values) == 5:
+            print("Loop Read = ",arduino_serial.inWaiting())
+            arduino_data_btn_shoot, arduino_data_btn_restart, arduino_data_btn_pause, arduino_data_x, arduino_data_z = map(str, values)
+            print(f"Received data from Arduino0: shoot = {arduino_data_btn_shoot}, restart = {arduino_data_btn_restart}, pause = {arduino_data_btn_pause}")
+            arduino_serial.flushInput()
+            arduino_serial.flushOutput()
 
-    arduino_data_btn_shoot = (arduino_serial.readline().decode('latin-1').strip())
-    arduino_data_btn_restart = (arduino_serial.readline().decode('latin-1').strip())
-    arduino_data_btn_pause = (arduino_serial.readline().decode('latin-1').strip())
-    arduino_data_x = int(arduino_serial.readline().decode('latin-1').strip())
-    arduino_data_y = int(arduino_serial.readline().decode('latin-1').strip())
+    #button restart
+            if arduino_data_btn_restart == '1':
+                running,player,gameover, enemies_down, shoot_frequency,enemy_frequency,enemies1, player_down_index, score=reset_game(player)
+                paused = False
+    #button pause
+            if arduino_data_btn_pause == '1':  # Toggle pause when "P" is pressed
+                paused = not paused
+            if paused:
+                continue
+    #button shoot
+            if arduino_data_btn_shoot == '1':
+                if shoot_frequency % 2 == 0:
+                    bullet_sound.play()
+                    player.shoot(bullet_img)
+                shoot_frequency += 1
+                if shoot_frequency >= 2:
+                    shoot_frequency = 0
 
-    #button restart & pause
-    if arduino_data_btn_restart == '0':
-        running,player,gameover, enemies_down, shoot_frequency,enemy_frequency,enemies1, player_down_index, score=reset_game(player)
-        paused = False
-    if arduino_data_btn_pause == '0':  # Toggle pause when "P" is pressed
-        paused = not paused
-    if paused:
-        continue
+                # Reset bullets_to_shoot when arduino_data_btn_shoot is not 0
+                else:
+                    bullets_to_shoot = 0
+                    
 
-    if enemy_frequency % 20 == 0:
+            #arduino_serial.flushInput()
+    #ADXL335 Transfer
+            player_movement(player,arduino_data_x,arduino_data_z)
+
+
+    if enemy_frequency % 5 == 0:
         enemy1_pos = [random.randint(0, SCREEN_WIDTH - enemy1_rect.width), 0]
         enemy1 = Enemy(enemy1_img, enemy1_down_imgs, enemy1_pos)
         enemies1.add(enemy1)
     enemy_frequency += 1
-    if enemy_frequency >= 40:
+    if enemy_frequency >= 100:
         enemy_frequency = 0
 
     
@@ -114,11 +144,25 @@ while running:
         enemy.move()
         
         if pygame.sprite.collide_circle(enemy, player):
+            # ถ้าศัตรู (enemy) ชนกับผู้เล่น (player) ในรูปแบบของวงกลม
+
+            # เพิ่มศัตรูที่ชนกับผู้เล่นลงในกลุ่ม enemies_down
             enemies_down.add(enemy)
+            
+            # นำศัตรูออกจากกลุ่ม enemies1 (ศัตรูทั้งหมด)
             enemies1.remove(enemy)
+            
+            # ตั้งค่าว่าผู้เล่น (player) ถูกชน
             player.is_hit = True
+            
+            # เล่นเสียงเมื่อเกม Game Over
             game_over_sound.play()
+            
+            # ออกจากลูป (loop) ในทันที
             break
+
+        # ถ้าศัตรู (enemy) อยู่ด้านบนของหน้าจอ (มีค่า y มากกว่า SCREEN_HEIGHT)
+        # ให้นำศัตรูออกจากกลุ่ม enemies1
         if enemy.rect.top > SCREEN_HEIGHT:
             enemies1.remove(enemy)
 
@@ -137,6 +181,7 @@ while running:
        
         player.img_index = shoot_frequency // 8
     else:
+        print("โดนชนนนนนน")
         player.img_index = min(player_down_index // 8, len(player.image) - 1)
         screen.blit(player.image[player.img_index], player.rect)
         player_down_index += 1
@@ -167,45 +212,28 @@ while running:
     screen.blit(score_text, text_rect)
     
 
-    pygame.display.update()
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             exit()
-    arduino_serial.flushInput()
+    #arduino_serial.flushInput()
 
     #มีข้อมูลค้าง ให้เคลียร์
-    if arduino_serial.inWaiting() >=1 :
-        arduino_serial.flushInput()
-
-    #ADXL335 Transfer
-    player_movement(player,arduino_data_x,arduino_data_y)
+    #if arduino_serial.inWaiting() >=1 :
+        #arduino_serial.flushInput()
     
-    pygame.display.update()
 
     # Check if arduino_data_btn_shoot is 0 and bullets_to_shoot is less than 3
 
-    if arduino_data_btn_shoot == '0':
-            if shoot_frequency % 2 == 0:
-                bullet_sound.play()
-                player.shoot(bullet_img)
-            shoot_frequency += 1
-            if shoot_frequency >= 2:
-                shoot_frequency = 0
-
-            # Reset bullets_to_shoot when arduino_data_btn_shoot is not 0
-            else:
-                bullets_to_shoot = 0
-                
-            pygame.display.update()
-            start_time = pygame.time.get_ticks() 
-
-    arduino_serial.flushInput()
-
     pygame.display.update()
+    time.sleep(0.01)
+    print("GameOver = ",gameover)
 
     while gameover:
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"รอบลูประยะเวลา: {elapsed_time} วินาที")
+        start_time = end_time  # เริ่มจับเวลาใหม่สำหรับรอบถัดไป
         font = pygame.font.Font(None, 48)
         text = font.render('Score: ' + str(score), True, (255, 0, 0))
         text_rect = text.get_rect()
@@ -214,15 +242,18 @@ while running:
         screen.blit(game_over, (0, 0))
         screen.blit(text, text_rect)
 
-        arduino_data_btn_shoot = (arduino_serial.readline().decode('latin-1').strip())
-        arduino_data_btn_restart = (arduino_serial.readline().decode('latin-1').strip())
-        arduino_data_btn_pause = (arduino_serial.readline().decode('latin-1').strip())
-        arduino_data_x = int(arduino_serial.readline().decode('latin-1').strip())
-        arduino_data_y = int(arduino_serial.readline().decode('latin-1').strip())
+        arduino_data = arduino_serial.readline().decode().strip()
+        values = arduino_data.split(',')
 
+        if len(values) == 5:
+            arduino_data_btn_shoot, arduino_data_btn_restart, arduino_data_btn_pause, arduino_data_x, arduino_data_z = map(str, values)
+            print(f"Received data from Arduino0: shoot = {arduino_data_btn_shoot}, restart = {arduino_data_btn_restart}, pause = {arduino_data_btn_pause}")
+            arduino_serial.flushInput()
+            arduino_serial.flushOutput()
+
+            if arduino_data_btn_restart == '1':
+                running,player,gameover, enemies_down, shoot_frequency,enemy_frequency,enemies1, player_down_index, score=reset_game(player)
+                break
 
         pygame.display.update()
-
-        if arduino_data_btn_restart == '0':
-            running,player,gameover, enemies_down, shoot_frequency,enemy_frequency,enemies1, player_down_index, score=reset_game(player)
-            break
+        time.sleep(0.01)
