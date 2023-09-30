@@ -11,7 +11,7 @@ import pygame
 # กำหนดพอร์ตที่ Arduino ใช้สำหรับ SoftwareSerial ตาม Xpin, Ypin, Zpin
 arduino_port = '/dev/cu.wchusbserial1140'  # แทนด้วยพอร์ตที่ตรงกับการกำหนดใน Arduino
 # เริ่มการเชื่อมต่อกับ Arduino ผ่านพอร์ตที่กำหนด
-arduino_serial = serial.Serial(arduino_port, 9600)
+arduino_serial = serial.Serial(arduino_port, 38400)
 
 
 pygame.init()
@@ -108,6 +108,7 @@ while running:
                 continue
     #button shoot
             if arduino_data_btn_shoot == '1':
+                print("Shooting Piw Piw\n")
                 if shoot_frequency % 2 == 0:
                     bullet_sound.play()
                     player.shoot(bullet_img)
