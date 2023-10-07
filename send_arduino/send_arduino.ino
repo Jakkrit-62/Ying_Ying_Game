@@ -1,5 +1,6 @@
 #include <SoftwareSerial.h>
-#include <LiquidCrystal_I2C.h>
+#include <avr/sleep.h>
+// #include <LiquidCrystal_I2C.h>
 
 #define Xpin 14 // A0
 #define Zpin 21 // A7
@@ -7,24 +8,40 @@
 #define buttonPin_shoot 17 // A3
 #define buttonPin_restart 15 //A1
 #define buttonPin_pause 16 //A2
+#define INT0_PIN 2
 
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+// LiquidCrystal_I2C lcd(0x27, 16, 2);
+unsigned long lastSwitchTime; 
+bool sleep_state = false; //ไม่สลีปโหมด
 
 SoftwareSerial transfer_serial(2, 3); // กำหนดขา RX และ TX ที่ต้องการใช้สำหรับ SoftwareSerial
 
-byte p[8] = {
-  0x1F,
-  0x1F, 
-  0x1F,
-  0x1F,
-  0x1F,
-  0x1F,
-  0x1F,
-  0x1F
-};
+// byte p[8] = {
+//   0x1F,
+//   0x1F, 
+//   0x1F,
+//   0x1F,
+//   0x1F,
+//   0x1F,
+//   0x1F,
+//   0x1F
+// };
 
 // char value[30];
-
+void SLEEP_DISABLE() {
+  SMCR &= 0xFE;
+}
+void SLEEP_INITIALIZE(uint8_t m) {
+  SMCR = (m << 1) | 0x01;
+    // SLEEP_INITIALIZE(0): Idle mode (โหมดการสลีปแบบ Idle)
+    // ในโหมดนี้, CPU จะหยุดทำงาน แต่ตัวคริสตัลและโมดูลต่างๆ ยังคงทำงานอยู่ ดังนั้น, คุณยังคงสามารถใช้งานคริสตัล (ความถี่) และโมดูลอื่น ๆ ได้.
+    // SLEEP_INITIALIZE(1): ADC Noise Reduction mode (โหมดการสลีปแบบลดรบกวนของ ADC)
+    // โหมดนี้จะทำให้ CPU หยุดทำงานและปิดรบกวนจาก ADC (Analog-to-Digital Converter) เพื่อให้การวัดสัญญาณแบบอนาล็อกเสียงให้มีความแม่นยำ.
+    // SLEEP_INITIALIZE(2): Power-down mode (โหมดการสลีปแบบปิดอุปกรณ์)
+    // โหมดนี้จะทำให้ CPU หยุดทำงานและปิดอุปกรณ์ทุกอย่าง มันเหมาะสำหรับการประหยัดพลังงานในระยะเวลาที่ไม่มีการใช้งานและการทำงานจะถูกรีเซ็ตใหม่เมื่อมีการตื่นขึ้น.
+    // SLEEP_INITIALIZE(3): Power-save mode (โหมดการสลีปแบบประหยัดพลังงาน)
+    // โหมดนี้เป็นโหมดการสลีปที่แบบระหว่าง โหมด Idle และ Power-down โหมดนี้ยังคงทำงานบางส่วนของอุปกรณ์เพื่อประหยัดพลังงาน.
+}
 
 void setup() {
   Serial.begin(38400); // ตั้งค่าอุณหภูมิของ Serial
@@ -34,10 +51,45 @@ void setup() {
   pinMode(buttonPin_shoot, INPUT);
   pinMode(buttonPin_restart, INPUT);
   pinMode(buttonPin_pause, INPUT);
+  attachInterrupt(digitalPinToInterrupt(INT0_PIN), Awake_func, FALLING);
 
   // lcd.init();
   // lcd.backlight();
   // lcd.clear();
+}
+
+void Awake_func() {
+  if (sleep_state){
+    Serial.println("Interrupt from Button Power");
+    Serial.println("Exit Sleep");
+    sleep_state = false;  //Toggle ค่า
+    SLEEP_DISABLE();  // ปิดโหมดการสลีป
+    transfer_serial.begin(38400);  // เริ่มต้นการสื่อสารผ่าน SoftwareSerial อีกครั้ง
+    lastSwitchTime = millis();  // รีเซ็ตเวลาเมื่อมีการกดสวิตช์
+  }
+  // else{ //ถ้าไม่อยู่ในโหมดสลีปแล้วกดปุ่มเพื่อเข้าสู่สลีปโหมด
+  //   Serial.println("Sleep");  // แสดงข้อความ "Sleep" ใน Serial Monitor
+  //   sleep_state = true; //Toggle ค่า
+  //   transfer_serial.end();  // หยุดการสื่อสารผ่าน SoftwareSerial
+  //   SLEEP_INITIALIZE(2);  // ตั้งค่าโหมดการสลีป (sleep mode) เป็น 2
+  //   lastSwitchTime = millis();  // รีเซ็ตเวลาเมื่อมีการกดสวิตช์
+  //   sleep_enable();
+  //   sleep_cpu();  // เข้าสู่โหมดการสลีปเพื่อประหยัดพลังงาน
+  //   SLEEP_DISABLE();  // ปิดโหมดการสลีป
+  //   Serial.println("Awake");
+  // }
+  // _delay_ms(2000);
+}
+
+void sleep_func(){
+  transfer_serial.end();  // หยุดการสื่อสารผ่าน SoftwareSerial
+  SLEEP_INITIALIZE(2);  // ตั้งค่าโหมดการสลีป (sleep mode) เป็น 2
+  sleep_enable();
+  Serial.println("Sleep");  // แสดงข้อความ "Sleep" ใน Serial Monitor
+  lastSwitchTime = millis();  // รีเซ็ตเวลาเมื่อมีการกดสวิตช์
+  sleep_state = true;
+  delay(1000);
+  sleep_cpu();  // เข้าสู่โหมดการสลีปเพื่อประหยัดพลังงาน
 }
 
 void loop() {
@@ -53,10 +105,10 @@ void loop() {
   int zValue = analogRead(Zpin); // Default z =390
   //int zValue = analogRead(Ypin);
 
-
   if (xValue > 420) {
     xValue = 0; // ถอยหลัง
   } else if (xValue < 365) {
+    
     xValue = 1;  //ไปหน้า
   }
   else{
@@ -69,67 +121,50 @@ void loop() {
   }
   else{
     zValue = 2;}
-
-  // delay(100);
-  // lcd.clear();
+  //เช็คปุ่มว่าโดนกดอยู่ ถ้าไม่กดนานจะได้เข้าสลีป
+  if (buttonState_shoot == 1 || buttonState_restart == 1 || buttonState_pause == 1) {
+    lastSwitchTime = millis();  // รีเซ็ตเวลาเมื่อมีการกดสวิตช์
+  }
 
   // lcd.setCursor(0, 0);
   // lcd.print("X = ");
   // lcd.print(xValue);
-  // lcd.print("  Y = ");
+  // lcd.print("  Z = ");
   // lcd.print(zValue);
   // lcd.setCursor(0, 1);
-  //lcd.print("Z = ");
-  //lcd.print(zValue);
+  // lcd.print("  btn = ");
+  // lcd.print(buttonState_shoot);
+  if (millis() - lastSwitchTime <= 5000) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 30 วินาทีหรือไม่
+    Serial.println(millis() - lastSwitchTime);  // แสดงข้อความ "Hello" ใน Serial Monitor
+  }
+  if (millis() - lastSwitchTime > 5000) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 30 วินาทีหรือไม่
+    Serial.println("5 Second Pass");  // แสดงข้อความ "Hello" ใน Serial Monitor
+    sleep_func();
+  }
+  // lcd.setCursor(0, 0);
+  // lcd.print("X = ");
+  // lcd.print(xValue);
+  // lcd.print("  Z = ");
+  // lcd.print(zValue);
+  // lcd.setCursor(0, 1);
   // lcd.print("  btn = ");
   // lcd.print(buttonState_shoot);
 
-  // //while shoot
-  // if (buttonState_shoot==0){
-  //   lcd.setCursor(0, 0);
-  //   lcd.print("Shooting PiwPiw");
-  // }
+  // Serial.println(int(buttonState_shoot));
+  // Serial.println(int(buttonState_restart));
+  // Serial.println(int(buttonState_pause));
+  // Serial.println(xValue);
+  // Serial.println(zValue);
 
-  // Serial.print(int(buttonState_shoot));
-  // Serial.print(",");
-  // //Serial.print("Re = ");
-  // Serial.print(int(buttonState_restart));
-  // Serial.print(",");
-  // //Serial.print("Pa = ");
-  // Serial.print(int(buttonState_pause));
-  // Serial.print(",");
-  // // Serial.print("X = ");
-  // Serial.print(int(xValue));
-  // Serial.print(",");
-  // // Serial.print("Z = ");
-  // Serial.println(int(zValue));
-
-  // transfer_serial.print(int(buttonState_shoot));
-  // transfer_serial.print(int(buttonState_restart));
-  // transfer_serial.print(int(buttonState_pause));
-  // transfer_serial.print(int(xValue));
-  // transfer_serial.print(int(zValue));
-  //transfer_serial.print(zValue);
-
-
-  //  String result = String(buttonState_shoot) + String(buttonState_restart) + String(buttonState_pause)+ String(xValue) + String(zValue);
-
-  //  result.toCharArray(value, sizeof(value));
-  //  int intValue = atoi(value); // ใช้ atoi() เพื่อแปลงเป็น int
-  //  transfer_serial.println(value);
-  Serial.println(buttonState_shoot);
-  Serial.println(xValue);
-  Serial.println(zValue);
-
-  transfer_serial.write(buttonState_shoot);
-  transfer_serial.write(buttonState_restart);
-  transfer_serial.write(buttonState_pause);
-  transfer_serial.write(xValue);
-  transfer_serial.write(zValue);
-
-   //ใน Arduino, transfer_serial.write() จะรับค่าไบต์ (byte) เป็นอาร์กิวเมนต์ และค่าที่สูงสุดที่สามารถเขียนไปยัง Serial หรือ SoftwareSerial ได้คือ 255 (0xFF) ซึ่งเป็นสูงสุดสำหรับความยาวของไบต์แบบ unsigned 8-bit ใน Arduino.
-  //  Serial.write("\n"); 
-
+  transfer_serial.write((buttonState_shoot));
+  delay(10);
+  transfer_serial.write((buttonState_restart));
+  delay(10);
+  transfer_serial.write((buttonState_pause));
+  delay(10);
+  transfer_serial.write((xValue));
+  delay(10);
+  transfer_serial.write((zValue));
   delay(100);
-
 }
+

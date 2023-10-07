@@ -8,6 +8,7 @@ int Zpin ;
 int buttonPin_shoot;
 int buttonPin_restart;
 int buttonPin_pause;  
+unsigned long lastSwitchTime; 
 
 void setup()
 {
@@ -18,15 +19,12 @@ void setup()
 
 void loop()
 {
-  // if (mySerial.available()>0){
-  //   value = mySerial.read();
-  //   Serial.println(value);
-  // }
-  // Serial.print(mySerial.available());
   // if (mySerial.available())
   //   Serial.write(mySerial.read());
   // if (Serial.available())
   //   mySerial.write(Serial.read());
+  // Serial.println(mySerial.available());
+  // delay(2000);
   if (mySerial.available() >= 5) // ตรวจสอบว่ามีข้อมูลอย่างน้อย 5 ไบต์ในบัฟเฟอร์
   {
     // อ่านค่าข้อมูลทั้งหมดในรอบเดียว
@@ -44,7 +42,6 @@ void loop()
     Serial.print(buttonPin_restart);
     Serial.print(",");
     // Serial.print("Btn_pause = ");
-    buttonPin_pause=0;
     Serial.print(buttonPin_pause);
     Serial.print(",");
     // Serial.print("X = ");
@@ -52,5 +49,14 @@ void loop()
     Serial.print(",");
     // Serial.print("Z = ");
     Serial.println(Zpin);
+    Serial.flush();
+    lastSwitchTime = millis(); // รีเซ็ตเวลาของ timeout เมื่อข้อมูลครบ
+  }
+  if (mySerial.available() <= 5) // ตรวจสอบว่ามีข้อมูลอย่างน้อย 5 ไบต์ในบัฟเฟอร์
+  {
+    if (millis() - lastSwitchTime > 1000){
+      Serial.println("99");
+      Serial.flush();
+    }
   }
 }
