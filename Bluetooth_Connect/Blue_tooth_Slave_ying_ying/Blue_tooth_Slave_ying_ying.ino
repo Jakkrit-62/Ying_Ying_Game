@@ -15,6 +15,7 @@ void setup()
   Serial.begin(38400);
   // while (!Serial) ;
   mySerial.begin(38400);
+  Serial.flush();
 }
 
 void loop()
