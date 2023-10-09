@@ -115,3 +115,26 @@ def reset_game(player):
         player.bullets.remove(bullet)
 
     return running,player,gameover, enemies_down, shoot_frequency, enemy_frequency,enemies1, player_down_index, score
+
+
+def read_highscore():
+    try:
+        with open('highscore.txt', 'r') as file:
+            highscore = int(file.read())
+    except FileNotFoundError:
+        highscore = 0
+    return highscore
+def write_highscore(highscore):
+    with open('highscore.txt', 'w') as file:
+        file.write(str(highscore))
+round_scores = []
+
+# ฟังก์ชันสำหรับเพิ่มคะแนนรอบลงในรายการ
+def add_round_score(score):
+    round_scores.append(score)
+
+# ฟังก์ชันสำหรับเขียนรายการคะแนนรอบทั้งหมดในไฟล์
+def write_round_scores_to_file():
+    with open('scores.txt', 'w') as file:
+        for score in round_scores:
+            file.write(str(score) + '\n')
