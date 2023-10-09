@@ -1,0 +1,2 @@
+website for AT Command
+https://s3-sa-east-1.amazonaws.com/robocore-lojavirtual/709/HC-05_ATCommandSet.pdf
