@@ -1,5 +1,9 @@
 import pygame
 
+#Thinkspeak
+import urllib
+import requests
+
 SCREEN_WIDTH = 480
 SCREEN_HEIGHT = 800
 
@@ -138,3 +142,27 @@ def write_round_scores_to_file():
     with open('scores.txt', 'w') as file:
         for score in round_scores:
             file.write(str(score) + '\n')
+
+
+#THINKSPEAK
+def update_thingspeak(score, highscore):
+    api_key = 'QEATA5NV3U4JPVYK'  # API
+    base_url = 'https://api.thingspeak.com/update?'
+
+    # Construct the URL with the data to be sent
+    url_params = {
+        'api_key': api_key,
+        'field1': score,
+        'field2': highscore
+    }
+    url = base_url + urllib.parse.urlencode(url_params)
+
+    try:
+        # Use requests library to make a GET request to ThingSpeak
+        response = requests.get(url)
+        if response.status_code == 200:
+            print("Data sent to ThingSpeak successfully!")
+        else:
+            print("Failed to send data to ThingSpeak. Status code:", response.status_code)
+    except Exception as e:
+        print("Error:", e)
