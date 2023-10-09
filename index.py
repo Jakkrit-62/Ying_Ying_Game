@@ -8,8 +8,9 @@ import pygame
 
 
 
+
 # กำหนดพอร์ตที่ Arduino ใช้สำหรับ SoftwareSerial ตาม Xpin, Ypin, Zpin
-arduino_port = '/dev/cu.wchusbserial1140'  # แทนด้วยพอร์ตที่ตรงกับการกำหนดใน Arduino
+arduino_port = '/dev/cu.usbmodem11101'  # แทนด้วยพอร์ตที่ตรงกับการกำหนดใน Arduino
 # เริ่มการเชื่อมต่อกับ Arduino ผ่านพอร์ตที่กำหนด
 arduino_serial = serial.Serial(arduino_port, 38400)
 
@@ -80,11 +81,13 @@ arduino_serial.flushInput()
 arduino_serial.flushOutput()
 start_time = time.time()
 
+sleep_state = False
+
 #High Score
 highscore = read_highscore()
 highscore = 0
 scores = []
-score_value = 50000  # ตัวแปร score_value ถูกกำหนดค่าเป็น 1000
+score_value = 1000  # ตัวแปร score_value ถูกกำหนดค่าเป็น 1000
 
 while running:
     # end_time = time.time()
@@ -96,6 +99,25 @@ while running:
     arduino_data = arduino_serial.readline().decode('latin-1').strip()
     values = arduino_data.split(',')
     print(len(values))
+    #Sleep mode Screen
+    if values[0] == '99':
+        print("PASS")
+        sleep_state = True
+
+        # Display "sleep" on the pygame screen
+        font = pygame.font.Font(None, 48)
+        sleep_text = font.render('Sleep', True, (255, 255, 255))  # White color
+        sleep_text_rect = sleep_text.get_rect()
+        sleep_text_rect.centerx = screen.get_rect().centerx
+        sleep_text_rect.centery = screen.get_rect().centery
+        screen.blit(sleep_text, sleep_text_rect)
+        pygame.display.update()
+    else:
+        sleep_state=False
+
+    if sleep_state:  # Sleep
+        continue
+
     if len(values) == 5:
             print("Loop Read = ",arduino_serial.inWaiting())
             arduino_data_btn_shoot, arduino_data_btn_restart, arduino_data_btn_pause, arduino_data_x, arduino_data_z = map(str, values)
@@ -278,6 +300,8 @@ while running:
             with open('scores.txt', 'a') as file:
                 file.write(str(score) + '\n')
             score_written = True  # กำหนดให้คะแนนถูกเขียนแล้ว
+
+        update_thingspeak(score, highscore)
 
         pygame.display.update()
         time.sleep(0.01)

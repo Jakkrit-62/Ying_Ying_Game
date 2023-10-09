@@ -80,7 +80,14 @@ clock = pygame.time.Clock()
 running = True
 paused = False
 sleep_state = False
-# wpi.serialFlush(arduino_serial)
+
+#High Score
+highscore = read_highscore()
+highscore = 0
+scores = []
+score_value = 1000  # ตัวแปร score_value ถูกกำหนดค่าเป็น 1000
+
+#serialFlush(arduino_serial)
 arduino_serial.flushInput()
 arduino_serial.flushOutput()
 start_time = time.time()
@@ -248,6 +255,8 @@ while running:
     screen.blit(score_text, text_rect)
     
 
+    score_written = False # เพิ่มตัวแปรเพื่อติดตามการเขียนคะแนน
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -278,6 +287,17 @@ while running:
         screen.blit(game_over, (0, 0))
         screen.blit(text, text_rect)
 
+        highscore_text = font.render(f'Highscore: {highscore}', True, (255, 0, 0))  # เพิ่มบันทึกคะแนนสูงสุด
+        highscore_rect = highscore_text.get_rect()
+        highscore_rect.centerx = screen.get_rect().centerx
+        highscore_rect.centery = screen.get_rect().centery +50
+        screen.blit(highscore_text, highscore_rect)
+        
+        if score > highscore:
+            highscore = score  # อัปเดตคะแนนสูงสุด
+            write_highscore(highscore)  # บันทึกคะแนนสูงสุดลงในไฟล์
+        scores.append(score_value) 
+
         arduino_data = arduino_serial.readline().decode().strip()
         values = arduino_data.split(',')
 
@@ -290,6 +310,11 @@ while running:
             if arduino_data_btn_restart == '1':
                 running,player,gameover, enemies_down, shoot_frequency,enemy_frequency,enemies1, player_down_index, score=reset_game(player)
                 break
+        if not score_written:  # ตรวจสอบว่ายังไม่ได้เขียนคะแนน
+            with open('scores.txt', 'a') as file:
+                file.write(str(score) + '\n')
+            score_written = True  # กำหนดให้คะแนนถูกเขียนแล้ว
 
+        update_thingspeak(score, highscore)
         pygame.display.update()
         time.sleep(0.01)
