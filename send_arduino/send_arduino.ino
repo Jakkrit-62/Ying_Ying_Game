@@ -14,7 +14,7 @@
 unsigned long lastSwitchTime; 
 bool sleep_state = false; //ไม่สลีปโหมด
 
-SoftwareSerial transfer_serial(2, 3); // กำหนดขา RX และ TX ที่ต้องการใช้สำหรับ SoftwareSerial
+SoftwareSerial transfer_serial(10, 11); // กำหนดขา TX และ RX ที่ต้องการใช้สำหรับ SoftwareSerial
 
 // byte p[8] = {
 //   0x1F,
@@ -135,7 +135,7 @@ void loop() {
   // lcd.print("  btn = ");
   // lcd.print(buttonState_shoot);
   if (millis() - lastSwitchTime <= 5000) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 30 วินาทีหรือไม่
-    Serial.println(millis() - lastSwitchTime);  // แสดงข้อความ "Hello" ใน Serial Monitor
+    Serial.println((millis() - lastSwitchTime)/100);  // แสดงข้อความ "Hello" ใน Serial Monitor
   }
   if (millis() - lastSwitchTime > 5000) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 30 วินาทีหรือไม่
     Serial.println("5 Second Pass");  // แสดงข้อความ "Hello" ใน Serial Monitor
@@ -150,11 +150,11 @@ void loop() {
   // lcd.print("  btn = ");
   // lcd.print(buttonState_shoot);
 
-  // Serial.println(int(buttonState_shoot));
-  // Serial.println(int(buttonState_restart));
-  // Serial.println(int(buttonState_pause));
-  // Serial.println(xValue);
-  // Serial.println(zValue);
+  Serial.print(int(buttonState_shoot));
+  Serial.print(int(buttonState_restart));
+  Serial.print(int(buttonState_pause));
+  Serial.print(xValue);
+  Serial.println(zValue);
 
   transfer_serial.write((buttonState_shoot));
   delay(10);
@@ -167,4 +167,3 @@ void loop() {
   transfer_serial.write((zValue));
   delay(100);
 }
-
