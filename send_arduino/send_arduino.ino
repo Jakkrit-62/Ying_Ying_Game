@@ -106,18 +106,18 @@ void loop() {
   int zValue = analogRead(Zpin); // Default z =390
   //int zValue = analogRead(Ypin);
 
-  if (xValue > 420) {
+  if (xValue > 365) {
     xValue = 0; // ถอยหลัง
-  } else if (xValue < 365) {
+  } else if (xValue < 300) {
     
     xValue = 1;  //ไปหน้า
   }
   else{
     xValue = 2;}
 
-  if (zValue > 410) {
+  if (zValue > 380) {
     zValue = 1;   //เลี้ยวขวา
-  } else if (zValue < 350) {
+  } else if (zValue < 300) {
     zValue = 0; //เลี้ยวซ้าย
   }
   else{
@@ -141,7 +141,7 @@ void loop() {
   // lcd.setCursor(0, 1);
   // lcd.print("  btn = ");
   // lcd.print(buttonState_shoot);
-  if (millis() - lastSwitchTime <= 5000) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 30 วินาทีหรือไม่
+  if (millis() - lastSwitchTime <= 15000) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 15 วินาทีหรือไม่
     Serial.println((millis() - lastSwitchTime)/100);  // แสดงข้อความ "Hello" ใน Serial Monitor
   }
   if (millis() - lastSwitchTime > 5000) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 30 วินาทีหรือไม่
@@ -163,14 +163,26 @@ void loop() {
   Serial.print(xValue);
   Serial.println(zValue);
 
-  transfer_serial.write((buttonState_shoot));
-  delay(10);
-  transfer_serial.write((buttonState_restart));
-  delay(10);
-  transfer_serial.write((buttonState_pause));
-  delay(10);
-  transfer_serial.write((xValue));
-  delay(10);
-  transfer_serial.write((zValue));
+  // transfer_serial.write((buttonState_shoot));
+  // delay(10);
+  // transfer_serial.write((buttonState_restart));
+  // delay(10);
+  // transfer_serial.write((buttonState_pause));
+  // delay(10);
+  // transfer_serial.write((xValue));
+  // delay(10);
+  // transfer_serial.write((zValue));
+
+  byte dataToSend = 0;
+  dataToSend |= (byte)(buttonState_shoot << 0);
+  dataToSend |= (byte)(buttonState_restart << 1);
+  dataToSend |= (byte)(buttonState_pause << 2);
+  dataToSend |= (byte)(xValue << 3);
+  dataToSend |= (byte)(zValue << 5);
+
+  // เคลียร์บิตที่ 5 เป็นต้นไป
+  dataToSend &= ~(0b11111111 << 7);
+
+  transfer_serial.write(dataToSend);
   delay(100);
 }
