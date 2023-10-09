@@ -9,6 +9,7 @@
 #define buttonPin_restart 15 //A1
 #define buttonPin_pause 16 //A2
 #define INT0_PIN 2
+#define LED_PIN 12
 
 // LiquidCrystal_I2C lcd(0x27, 16, 2);
 unsigned long lastSwitchTime; 
@@ -54,6 +55,7 @@ void setup() {
   pinMode(buttonPin_restart, INPUT);
   pinMode(buttonPin_pause, INPUT);
   attachInterrupt(digitalPinToInterrupt(INT0_PIN), Awake_func, FALLING);
+  pinMode(LED_PIN, OUTPUT);
   // lcd.init();
   // lcd.backlight();
   // lcd.clear();
@@ -67,6 +69,7 @@ void Awake_func() {
     SLEEP_DISABLE();  // ปิดโหมดการสลีป
     transfer_serial.begin(38400);  // เริ่มต้นการสื่อสารผ่าน SoftwareSerial อีกครั้ง
     lastSwitchTime = millis();  // รีเซ็ตเวลาเมื่อมีการกดสวิตช์
+    digitalWrite(LED_PIN, HIGH); // เปิด LED
   }
   // else{ //ถ้าไม่อยู่ในโหมดสลีปแล้วกดปุ่มเพื่อเข้าสู่สลีปโหมด
   //   Serial.println("Sleep");  // แสดงข้อความ "Sleep" ใน Serial Monitor
@@ -89,11 +92,13 @@ void sleep_func(){
   Serial.println("Sleep");  // แสดงข้อความ "Sleep" ใน Serial Monitor
   lastSwitchTime = millis();  // รีเซ็ตเวลาเมื่อมีการกดสวิตช์
   sleep_state = true;
+  digitalWrite(LED_PIN, LOW); // ปิด LED
   delay(1000);
   sleep_cpu();  // เข้าสู่โหมดการสลีปเพื่อประหยัดพลังงาน
 }
 
 void loop() {
+  digitalWrite(LED_PIN, 1); // เปิด LED
   //Set up code bluetooth
   // if (transfer_serial.available())
   //   Serial.write(transfer_serial.read());
@@ -177,11 +182,15 @@ void loop() {
   dataToSend |= (byte)(buttonState_shoot << 0);
   dataToSend |= (byte)(buttonState_restart << 1);
   dataToSend |= (byte)(buttonState_pause << 2);
-  dataToSend |= (byte)(xValue << 3);
-  dataToSend |= (byte)(zValue << 5);
+  dataToSend |= (byte)(xValue << 3); // บิต 3,4
+  dataToSend |= (byte)(zValue << 5); // บิต 5,6
 
-  // เคลียร์บิตที่ 5 เป็นต้นไป
-  dataToSend &= ~(0b11111111 << 7);
+  if (digitalRead(INT0_PIN) == LOW) {
+  dataToSend |= (1 << 7); // ตั้งค่าบิตที่ 7 เป็น 1
+  } else {
+    dataToSend &= ~(1 << 7); // ตั้งค่าบิตที่ 7 เป็น 0
+  }
+
 
   transfer_serial.write(dataToSend);
   delay(100);

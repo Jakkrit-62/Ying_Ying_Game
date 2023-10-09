@@ -106,7 +106,7 @@ while running:
 
         # Display "sleep" on the pygame screen
         font = pygame.font.Font(None, 48)
-        sleep_text = font.render('Sleep', True, (255, 255, 255))  # White color
+        sleep_text = font.render('Not Connect GAJAMA Gun', True, (255, 255, 255))  # White color
         sleep_text_rect = sleep_text.get_rect()
         sleep_text_rect.centerx = screen.get_rect().centerx
         sleep_text_rect.centery = screen.get_rect().centery
@@ -280,12 +280,29 @@ while running:
 
         arduino_data = arduino_serial.readline().decode().strip()
         values = arduino_data.split(',')
+        if values[0] == '99':
+            print("PASS")
+            sleep_state = True
+
+            # Display "sleep" on the pygame screen
+            font = pygame.font.Font(None, 48)
+            sleep_text = font.render('Not Connect GAJAMA Gun', True, (255, 255, 255))  # White color
+            sleep_text_rect = sleep_text.get_rect()
+            sleep_text_rect.centerx = screen.get_rect().centerx
+            sleep_text_rect.centery = screen.get_rect().centery
+            screen.blit(sleep_text, sleep_text_rect)
+            pygame.display.update()
+        else:
+            sleep_state=False
+
+        if sleep_state:  # Sleep
+            continue
 
         if score > highscore:
             highscore = score  # อัปเดตคะแนนสูงสุด
             write_highscore(highscore)  # บันทึกคะแนนสูงสุดลงในไฟล์
         scores.append(score_value) 
-
+        print(values)
         if len(values) == 5:
             arduino_data_btn_shoot, arduino_data_btn_restart, arduino_data_btn_pause, arduino_data_x, arduino_data_z = map(str, values)
             print(f"Received data from Arduino0: shoot = {arduino_data_btn_shoot}, restart = {arduino_data_btn_restart}, pause = {arduino_data_btn_pause}")
