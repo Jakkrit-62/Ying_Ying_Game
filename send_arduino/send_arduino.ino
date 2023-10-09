@@ -13,6 +13,8 @@
 // LiquidCrystal_I2C lcd(0x27, 16, 2);
 unsigned long lastSwitchTime; 
 bool sleep_state = false; //ไม่สลีปโหมด
+int newXValue = -1; // อัพเดตค่า x
+int newZValue = -1; // อัพเดตค่า z
 
 SoftwareSerial transfer_serial(10, 11); // กำหนดขา TX และ RX ที่ต้องการใช้สำหรับ SoftwareSerial
 
@@ -52,7 +54,6 @@ void setup() {
   pinMode(buttonPin_restart, INPUT);
   pinMode(buttonPin_pause, INPUT);
   attachInterrupt(digitalPinToInterrupt(INT0_PIN), Awake_func, FALLING);
-
   // lcd.init();
   // lcd.backlight();
   // lcd.clear();
@@ -115,9 +116,9 @@ void loop() {
     xValue = 2;}
 
   if (zValue > 410) {
-    zValue = 1;   //เลี้ยวซ้าย
+    zValue = 1;   //เลี้ยวขวา
   } else if (zValue < 350) {
-    zValue = 0; //เลี้ยวขวา
+    zValue = 0; //เลี้ยวซ้าย
   }
   else{
     zValue = 2;}
@@ -125,6 +126,12 @@ void loop() {
   if (buttonState_shoot == 1 || buttonState_restart == 1 || buttonState_pause == 1) {
     lastSwitchTime = millis();  // รีเซ็ตเวลาเมื่อมีการกดสวิตช์
   }
+  // ถ้าค่า x หรือ z มีการเปลี่ยนแปลง
+  if (newXValue != xValue || newZValue != zValue) {
+    lastSwitchTime = millis(); // รีเซ็ตเวลา
+  }
+  newXValue = xValue;
+  newZValue = zValue;
 
   // lcd.setCursor(0, 0);
   // lcd.print("X = ");
