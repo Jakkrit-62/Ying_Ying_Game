@@ -1,34 +1,38 @@
 #include <SoftwareSerial.h>
 #include <avr/sleep.h>
-// #include <LiquidCrystal_I2C.h>
+#include <LiquidCrystal_I2C.h>
 
 #define Xpin 14 // A0
 #define Zpin 21 // A7
 //#define Ypin 16 // A2
-#define buttonPin_shoot 17 // A3
+#define buttonPin_shoot 5 // D5
 #define buttonPin_restart 15 //A1
 #define buttonPin_pause 16 //A2
 #define INT0_PIN 2
 #define LED_PIN 12
+#define time_out_sec 15
+#define time_out_milli 15000
 
-// LiquidCrystal_I2C lcd(0x27, 16, 2);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 unsigned long lastSwitchTime; 
 bool sleep_state = false; //ไม่สลีปโหมด
 int newXValue = -1; // อัพเดตค่า x
 int newZValue = -1; // อัพเดตค่า z
+int restart_times = 0; // จำนวนครั้งที่กด restart
+bool pause_state = false; //สถานะปุ่ม pause
 
 SoftwareSerial transfer_serial(10, 11); // กำหนดขา TX และ RX ที่ต้องการใช้สำหรับ SoftwareSerial
 
-// byte p[8] = {
-//   0x1F,
-//   0x1F, 
-//   0x1F,
-//   0x1F,
-//   0x1F,
-//   0x1F,
-//   0x1F,
-//   0x1F
-// };
+byte bulletChar[8] = {
+  0b10000,
+  0b11100,
+  0b11110,
+  0b11111,
+  0b11111,
+  0b11110,
+  0b11100,
+  0b10000
+};
 
 // char value[30];
 void SLEEP_DISABLE() {
@@ -56,9 +60,10 @@ void setup() {
   pinMode(buttonPin_pause, INPUT);
   attachInterrupt(digitalPinToInterrupt(INT0_PIN), Awake_func, FALLING);
   pinMode(LED_PIN, OUTPUT);
-  // lcd.init();
-  // lcd.backlight();
-  // lcd.clear();
+  lcd.init();
+  lcd.backlight();
+  lcd.createChar(0, bulletChar);
+  lcd.clear();
 }
 
 void Awake_func() {
@@ -89,11 +94,14 @@ void sleep_func(){
   transfer_serial.end();  // หยุดการสื่อสารผ่าน SoftwareSerial
   SLEEP_INITIALIZE(2);  // ตั้งค่าโหมดการสลีป (sleep mode) เป็น 2
   sleep_enable();
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Sleep pap na");
   Serial.println("Sleep");  // แสดงข้อความ "Sleep" ใน Serial Monitor
   lastSwitchTime = millis();  // รีเซ็ตเวลาเมื่อมีการกดสวิตช์
   sleep_state = true;
   digitalWrite(LED_PIN, LOW); // ปิด LED
-  delay(1000);
+  delay(2000);
   sleep_cpu();  // เข้าสู่โหมดการสลีปเพื่อประหยัดพลังงาน
 }
 
@@ -110,19 +118,18 @@ void loop() {
   int xValue = analogRead(Xpin); // Default x = 380  
   int zValue = analogRead(Zpin); // Default z =390
   //int zValue = analogRead(Ypin);
-
-  if (xValue > 365) {
+  if (xValue > 435) {
     xValue = 0; // ถอยหลัง
-  } else if (xValue < 300) {
+  } else if (xValue < 350) {
     
     xValue = 1;  //ไปหน้า
   }
   else{
     xValue = 2;}
 
-  if (zValue > 380) {
+  if (zValue > 400) {
     zValue = 1;   //เลี้ยวขวา
-  } else if (zValue < 300) {
+  } else if (zValue < 350) {
     zValue = 0; //เลี้ยวซ้าย
   }
   else{
@@ -138,31 +145,23 @@ void loop() {
   newXValue = xValue;
   newZValue = zValue;
 
-  // lcd.setCursor(0, 0);
-  // lcd.print("X = ");
-  // lcd.print(xValue);
-  // lcd.print("  Z = ");
-  // lcd.print(zValue);
-  // lcd.setCursor(0, 1);
-  // lcd.print("  btn = ");
-  // lcd.print(buttonState_shoot);
-  if (millis() - lastSwitchTime <= 15000) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 15 วินาทีหรือไม่
-    Serial.println((millis() - lastSwitchTime)/100);  // แสดงข้อความ "Hello" ใน Serial Monitor
+  if (millis() - lastSwitchTime <= time_out_milli) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 15 วินาทีหรือไม่
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Sleep in ");
+    lcd.print(time_out_sec - ( (millis() - lastSwitchTime)/1000 ) );
+    lcd.print(" Sec");
   }
-  if (millis() - lastSwitchTime > 5000) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 30 วินาทีหรือไม่
-    Serial.println("5 Second Pass");  // แสดงข้อความ "Hello" ใน Serial Monitor
+
+  if (millis() - lastSwitchTime > time_out_milli) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 30 วินาทีหรือไม่
+    Serial.println("15 Second Pass");
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Sleep pap na");
     sleep_func();
   }
-  // lcd.setCursor(0, 0);
-  // lcd.print("X = ");
-  // lcd.print(xValue);
-  // lcd.print("  Z = ");
-  // lcd.print(zValue);
-  // lcd.setCursor(0, 1);
-  // lcd.print("  btn = ");
-  // lcd.print(buttonState_shoot);
-
-  Serial.print(int(buttonState_shoot));
+  Serial.print("Shoot value = ");
+  Serial.println(int(buttonState_shoot));
   Serial.print(int(buttonState_restart));
   Serial.print(int(buttonState_pause));
   Serial.print(xValue);
@@ -190,8 +189,66 @@ void loop() {
   } else {
     dataToSend &= ~(1 << 7); // ตั้งค่าบิตที่ 7 เป็น 0
   }
-
-
+  
   transfer_serial.write(dataToSend);
+  delay(100);
+    
+  //LCD Shoot
+  if (buttonState_shoot == 1) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Shooting!");
+    lcd.setCursor(0, 1);
+    lcd.write(0); // แสดงตัวอักษร bulletChar
+    delay(350); // ความหน่วงหลังการแสดง bulletChar
+    while (buttonState_shoot == 1) {
+      lcd.setCursor(0, 1);
+      lcd.scrollDisplayRight(); // เลื่อนข้อความไปทางซ้าย
+      lcd.write(0);
+      lcd.print("-");
+      lcd.write(0);
+      lcd.print("-");
+      lcd.write(0);
+      lcd.print("-");
+      lcd.write(0);
+      delay(500); // ความหน่วงระหว่างการเลื่อน
+      buttonState_shoot = digitalRead(buttonPin_shoot); // อ่านสถานะปุ่มอีกครั้ง
+    }
+  }
+  
+  //LCD Restart
+  if (buttonState_restart ==1){
+    restart_times +=1;
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Restart ");
+    lcd.print(restart_times);
+    lcd.print(" times");
+    delay(1300);
+  }
+//LCD Pause
+  if (buttonState_pause){
+    Serial.print("pause1=");
+    Serial.println(pause_state);
+    pause_state = !pause_state;
+    Serial.print("pause2=");
+    Serial.println(pause_state);
+  }
+  while (pause_state){
+    buttonState_pause = digitalRead(buttonPin_pause); 
+    if (buttonState_pause){
+      pause_state = false;
+    }
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Pause ");
+    lcd.print( (millis() - lastSwitchTime) / 1000);
+    lcd.print(" sec");
+    lcd.setCursor(0, 1);
+    lcd.print("Sleep in ");
+    lcd.print( time_out_sec - ( (millis() - lastSwitchTime)/1000 ) );
+    lcd.print(" Sec");
+    Serial.print("IN LOOP");
+  }
   delay(100);
 }
