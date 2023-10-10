@@ -166,3 +166,13 @@ def update_thingspeak(score, highscore):
             print("Failed to send data to ThingSpeak. Status code:", response.status_code)
     except Exception as e:
         print("Error:", e)
+def update_highscore(new_highscore):
+    existing_highscore = read_highscore()
+
+    # Compare the new highscore with the existing one
+    if new_highscore > existing_highscore:
+        # Update the highscore in the file
+        write_highscore(new_highscore)
+        print("Highscore updated successfully.")
+    else:
+        print("No need to update the highscore.")

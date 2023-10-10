@@ -265,18 +265,22 @@ while running:
         # print(f"รอบลูประยะเวลา: {elapsed_time} วินาที")
         # start_time = end_time  # เริ่มจับเวลาใหม่สำหรับรอบถัดไป
         font = pygame.font.Font(None, 48)
-        text = font.render('Score: ' + str(score), True, (255, 0, 0))
         text_rect = text.get_rect()
         text_rect.centerx = screen.get_rect().centerx
         text_rect.centery = screen.get_rect().centery + 24
-        screen.blit(game_over, (0, 0))
-        screen.blit(text, text_rect)
+        text = font.render('Score: ' + str(score), True, (255, 0, 0))
 
-        highscore_text = font.render(f'Highscore: {highscore}', True, (255, 0, 0))  # เพิ่มบันทึกคะแนนสูงสุด
+        with open('highscore.txt', 'r') as file:
+            highscore = int(file.read())
+
+        highscore_text = font.render(f'Highscore: {highscore}', True, (255, 0, 0))  # เพิ่มบันทึกคะแนนสูงสุด  
+        new_highscore = int(read_highscore())
         highscore_rect = highscore_text.get_rect()
         highscore_rect.centerx = screen.get_rect().centerx
         highscore_rect.centery = screen.get_rect().centery +50
         screen.blit(highscore_text, highscore_rect)
+        screen.blit(game_over, (0, 0))
+        screen.blit(text, text_rect)
 
         arduino_data = arduino_serial.readline().decode().strip()
         values = arduino_data.split(',')
