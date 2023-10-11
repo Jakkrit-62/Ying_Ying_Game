@@ -102,6 +102,8 @@ void loop() {
   int xValue = analogRead(Xpin); // Default x = 380  
   int zValue = analogRead(Zpin); // Default z =390
   
+  transfer_serial.write(xValue);
+  transfer_serial.write(zValue);
   //เเปลงค่า Digital เป็นคำสั่งการเคลื่อนที่
   if (xValue > 435) {
     xValue = 0; // ถอยหลัง
