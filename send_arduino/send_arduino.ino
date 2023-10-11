@@ -1,28 +1,28 @@
 #include <SoftwareSerial.h>
 #include <avr/sleep.h>
-#include <LiquidCrystal_I2C.h>
+// #include <LiquidCrystal_I2C.h>
 
-#define Xpin 14 // A0
-#define Zpin 21 // A7
-//#define Ypin 16 // A2
-#define buttonPin_shoot 5 // D5
-#define buttonPin_restart 15 //A1
-#define buttonPin_pause 16 //A2
-#define INT0_PIN 2
-#define LED_PIN 12
-#define time_out_sec 15
-#define time_out_milli 15000
+#define Xpin 14 // Pin A0
+#define Zpin 21 // Pin A7
+#define buttonPin_shoot 5 // Pin D5
+#define buttonPin_restart 15 // Pin A1
+#define buttonPin_pause 16 // Pin A2
+#define INT0_PIN 2 // Pin D2 เป็น Pin Interrupt Pin INT0
+#define LED_PIN 12 // หากเข้า Sleep Mode LED ดับ หาก Arduino ทำงาน LED จะติด
+#define time_out_sec 15 // เวลา Timeout หน่วยวินาที
+#define time_out_milli 15000 // เวลา Timeout หน่วยมิลลิวินาที
 
-LiquidCrystal_I2C lcd(0x27, 16, 2);
-unsigned long lastSwitchTime; 
-bool sleep_state = false; //ไม่สลีปโหมด
-int newXValue = -1; // อัพเดตค่า x
-int newZValue = -1; // อัพเดตค่า z
-int restart_times = 0; // จำนวนครั้งที่กด restart
-bool pause_state = false; //สถานะปุ่ม pause
+// LiquidCrystal_I2C lcd(0x27, 16, 2);
+unsigned long lastSwitchTime; // ตัวเเปรเก็บเวลาสำหรับ Time Out
+bool sleep_state = false; // Default = ไม่สลีปโหมด
+int newXValue = -1; // อัพเดตค่า x เพื่อเช็คแกนเปลี่ยนมั้ย
+int newZValue = -1; // อัพเดตค่า z เพื่อเช็คแกนเปลี่ยนมั้ย
+int restart_times = 0; // จำนวนครั้งที่กด restart = 0
+bool pause_state = false; //สถานะปุ่ม Default pause = false
 
 SoftwareSerial transfer_serial(10, 11); // กำหนดขา TX และ RX ที่ต้องการใช้สำหรับ SoftwareSerial
 
+//สัญลักษณ์กระสุนแสดงบน LCD
 byte bulletChar[8] = {
   0b10000,
   0b11100,
@@ -51,62 +51,45 @@ void SLEEP_INITIALIZE(uint8_t m) {
 }
 
 void setup() {
-  Serial.begin(38400); // ตั้งค่าอุณหภูมิของ Serial
-  transfer_serial.begin(38400); // ตั้งค่าอุณหภูมิของ SoftwareSerial
-  pinMode(Xpin, INPUT);  
-  pinMode(Zpin, INPUT);
-  pinMode(buttonPin_shoot, INPUT);
-  pinMode(buttonPin_restart, INPUT);
-  pinMode(buttonPin_pause, INPUT);
-  attachInterrupt(digitalPinToInterrupt(INT0_PIN), Awake_func, FALLING);
-  pinMode(LED_PIN, OUTPUT);
-  lcd.init();
-  lcd.backlight();
-  lcd.createChar(0, bulletChar);
-  lcd.clear();
+  Serial.begin(38400); // ตั้งค่า Baud Rate ของ Serial
+  transfer_serial.begin(38400); //  ตั้งค่า Baud Rate ของ SoftwareSerial
+  pinMode(Xpin, INPUT);  //กำหนดให้ขาที่ 14 สำหรับรับค่าแกน X ให้เป็นอินพุต
+  pinMode(Zpin, INPUT); //กำหนดให้ขาที่ 21 สำหรับรับค่าแกน Z ให้เป็นอินพุต
+  pinMode(buttonPin_shoot, INPUT);  //กำหนดให้ขาที่ 5 สำหรับรับค่าปุ่มยิงให้เป็นอินพุต
+  pinMode(buttonPin_restart, INPUT); //กำหนดให้ขาที่ 15 สำหรับรับค่าปุ่มรีสตาร์ทให้เป็นอินพุต
+  pinMode(buttonPin_pause, INPUT);  //กำหนดให้ขาที่ 16 สำหรับรับค่าปุ่มหยุดให้เป็นอินพุต
+  attachInterrupt(digitalPinToInterrupt(INT0_PIN), Awake_func, FALLING); //กำหนด Interrupt
+  pinMode(LED_PIN, OUTPUT); //ตั้งให้ขาที่ 12 เป็น OutPut
 }
 
 void Awake_func() {
+  // หากไม่อยู่ใน Sleep Mode จะไม่สามารถปลุก
   if (sleep_state){
     Serial.println("Interrupt from Button Power");
     Serial.println("Exit Sleep");
-    sleep_state = false;  //Toggle ค่า
-    SLEEP_DISABLE();  // ปิดโหมดการสลีป
+    sleep_state = false;  //Toggle ค่า State ของ Sleep Mode
+    pause_state = false; //ออกจาก Pause
+    SLEEP_DISABLE();  // ออกจาก Sleep Mode
     transfer_serial.begin(38400);  // เริ่มต้นการสื่อสารผ่าน SoftwareSerial อีกครั้ง
     lastSwitchTime = millis();  // รีเซ็ตเวลาเมื่อมีการกดสวิตช์
-    digitalWrite(LED_PIN, HIGH); // เปิด LED
+    digitalWrite(LED_PIN, HIGH); // ให้ LED ติด เมื่อ Arduino ไม่อยู่ Sleep Mode
   }
-  // else{ //ถ้าไม่อยู่ในโหมดสลีปแล้วกดปุ่มเพื่อเข้าสู่สลีปโหมด
-  //   Serial.println("Sleep");  // แสดงข้อความ "Sleep" ใน Serial Monitor
-  //   sleep_state = true; //Toggle ค่า
-  //   transfer_serial.end();  // หยุดการสื่อสารผ่าน SoftwareSerial
-  //   SLEEP_INITIALIZE(2);  // ตั้งค่าโหมดการสลีป (sleep mode) เป็น 2
-  //   lastSwitchTime = millis();  // รีเซ็ตเวลาเมื่อมีการกดสวิตช์
-  //   sleep_enable();
-  //   sleep_cpu();  // เข้าสู่โหมดการสลีปเพื่อประหยัดพลังงาน
-  //   SLEEP_DISABLE();  // ปิดโหมดการสลีป
-  //   Serial.println("Awake");
-  // }
-  // _delay_ms(2000);
 }
 
+//ฟังก์ชัน Sleep
 void sleep_func(){
   transfer_serial.end();  // หยุดการสื่อสารผ่าน SoftwareSerial
-  SLEEP_INITIALIZE(2);  // ตั้งค่าโหมดการสลีป (sleep mode) เป็น 2
-  sleep_enable();
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Sleep pap na");
+  SLEEP_INITIALIZE(2);  // ตั้งค่าโหมดการสลีป (sleep mode) เป็น 2 Power Down Mod
+  sleep_enable(); //เปิดการใช้งานโหมดการสลีป
   Serial.println("Sleep");  // แสดงข้อความ "Sleep" ใน Serial Monitor
   lastSwitchTime = millis();  // รีเซ็ตเวลาเมื่อมีการกดสวิตช์
-  sleep_state = true;
-  digitalWrite(LED_PIN, LOW); // ปิด LED
-  delay(2000);
+  sleep_state = true; // สถานะการนอนเป็น True เพื่อให้สามารถกดปลุกได้
+  digitalWrite(LED_PIN, LOW); // ปิด LED ก่อนเข้า Sleep Mode
+  delay(1000);
   sleep_cpu();  // เข้าสู่โหมดการสลีปเพื่อประหยัดพลังงาน
 }
 
 void loop() {
-  digitalWrite(LED_PIN, 1); // เปิด LED
   //Set up code bluetooth
   // if (transfer_serial.available())
   //   Serial.write(transfer_serial.read());
@@ -117,138 +100,60 @@ void loop() {
   int buttonState_pause = digitalRead(buttonPin_pause); // อ่านสถานะของสวิตช์ A6
   int xValue = analogRead(Xpin); // Default x = 380  
   int zValue = analogRead(Zpin); // Default z =390
-  //int zValue = analogRead(Ypin);
+  
+  //เเปลงค่า Digital เป็นคำสั่งการเคลื่อนที่
   if (xValue > 435) {
     xValue = 0; // ถอยหลัง
   } else if (xValue < 350) {
-    
     xValue = 1;  //ไปหน้า
   }
   else{
-    xValue = 2;}
-
+    xValue = 2; // IDLE
+    } 
   if (zValue > 400) {
     zValue = 1;   //เลี้ยวขวา
   } else if (zValue < 350) {
     zValue = 0; //เลี้ยวซ้าย
   }
   else{
-    zValue = 2;}
-  //เช็คปุ่มว่าโดนกดอยู่ ถ้าไม่กดนานจะได้เข้าสลีป
+    zValue = 2; //IDLE
+  }
+
+  //เช็คปุ่มว่าโดนกดอยู่ ถ้าไม่กดนานจะได้เข้า Sleep Mode
   if (buttonState_shoot == 1 || buttonState_restart == 1 || buttonState_pause == 1) {
     lastSwitchTime = millis();  // รีเซ็ตเวลาเมื่อมีการกดสวิตช์
   }
-  // ถ้าค่า x หรือ z มีการเปลี่ยนแปลง
+  // ถ้าค่า x หรือ z มีการเปลี่ยนแปลงจะไม่เข้าสู่ Sleep Mode
   if (newXValue != xValue || newZValue != zValue) {
     lastSwitchTime = millis(); // รีเซ็ตเวลา
   }
-  newXValue = xValue;
-  newZValue = zValue;
+  newXValue = xValue; //เก็บค่าปัจจุบันเพื่อไว้เปรียบเทียบในลูปถัดไป
+  newZValue = zValue; //เก็บค่าปัจจุบันเพื่อไว้เปรียบเทียบในลูปถัดไป
 
-  if (millis() - lastSwitchTime <= time_out_milli) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 15 วินาทีหรือไม่
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Sleep in ");
-    lcd.print(time_out_sec - ( (millis() - lastSwitchTime)/1000 ) );
-    lcd.print(" Sec");
-  }
-
-  if (millis() - lastSwitchTime > time_out_milli) {  // ตรวจสอบว่าเวลาที่ผ่านมาหลังจากการกดปุ่มหรือ interrupt มากกว่า 30 วินาทีหรือไม่
-    Serial.println("15 Second Pass");
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Sleep pap na");
+  if (millis() - lastSwitchTime > time_out_milli) {
+    Serial.print(time_out_sec);
+    Serial.println(" Second Pass");
     sleep_func();
   }
-  Serial.print("Shoot value = ");
-  Serial.println(int(buttonState_shoot));
+
+  //แสดงผลการค่าที่อ่าน
+  Serial.print(int(buttonState_shoot));
   Serial.print(int(buttonState_restart));
   Serial.print(int(buttonState_pause));
   Serial.print(xValue);
   Serial.println(zValue);
 
-  // transfer_serial.write((buttonState_shoot));
-  // delay(10);
-  // transfer_serial.write((buttonState_restart));
-  // delay(10);
-  // transfer_serial.write((buttonState_pause));
-  // delay(10);
-  // transfer_serial.write((xValue));
-  // delay(10);
-  // transfer_serial.write((zValue));
-
+  //ส่งข้อมูล 1 Byte โดยเเต่ละบิตจะมีค่าต่าง ๆ
   byte dataToSend = 0;
-  dataToSend |= (byte)(buttonState_shoot << 0);
-  dataToSend |= (byte)(buttonState_restart << 1);
-  dataToSend |= (byte)(buttonState_pause << 2);
-  dataToSend |= (byte)(xValue << 3); // บิต 3,4
-  dataToSend |= (byte)(zValue << 5); // บิต 5,6
+  dataToSend |= (byte)(buttonState_shoot << 0); // บิตที่ 0 เก็บค่าจากปุ่มยิง
+  dataToSend |= (byte)(buttonState_restart << 1); // บิตที่ 1 เก็บค่าจากปุ่มรีสตาร์ท
+  dataToSend |= (byte)(buttonState_pause << 2); // บิตที่ 2 เก็บค่าจากปุ่มหยุด
+  dataToSend |= (byte)(xValue << 3); // บิตที่ 3,4 เก็บค่าคำสั่งการเคลื่อนที่แกน X
+  dataToSend |= (byte)(zValue << 5); // บิตที่ 5,6 เก็บค่าคำสั่งการเคลื่อนที่แกน Z
 
-  if (digitalRead(INT0_PIN) == LOW) {
-  dataToSend |= (1 << 7); // ตั้งค่าบิตที่ 7 เป็น 1
-  } else {
-    dataToSend &= ~(1 << 7); // ตั้งค่าบิตที่ 7 เป็น 0
-  }
-  
+  // เคลียร์บิตที่ 7
+  dataToSend &= ~(1 << 6);
+
   transfer_serial.write(dataToSend);
-  delay(100);
-    
-  //LCD Shoot
-  if (buttonState_shoot == 1) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Shooting!");
-    lcd.setCursor(0, 1);
-    lcd.write(0); // แสดงตัวอักษร bulletChar
-    delay(350); // ความหน่วงหลังการแสดง bulletChar
-    while (buttonState_shoot == 1) {
-      lcd.setCursor(0, 1);
-      lcd.scrollDisplayRight(); // เลื่อนข้อความไปทางซ้าย
-      lcd.write(0);
-      lcd.print("-");
-      lcd.write(0);
-      lcd.print("-");
-      lcd.write(0);
-      lcd.print("-");
-      lcd.write(0);
-      delay(500); // ความหน่วงระหว่างการเลื่อน
-      buttonState_shoot = digitalRead(buttonPin_shoot); // อ่านสถานะปุ่มอีกครั้ง
-    }
-  }
-  
-  //LCD Restart
-  if (buttonState_restart ==1){
-    restart_times +=1;
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Restart ");
-    lcd.print(restart_times);
-    lcd.print(" times");
-    delay(1300);
-  }
-//LCD Pause
-  if (buttonState_pause){
-    Serial.print("pause1=");
-    Serial.println(pause_state);
-    pause_state = !pause_state;
-    Serial.print("pause2=");
-    Serial.println(pause_state);
-  }
-  while (pause_state){
-    buttonState_pause = digitalRead(buttonPin_pause); 
-    if (buttonState_pause){
-      pause_state = false;
-    }
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Pause ");
-    lcd.print( (millis() - lastSwitchTime) / 1000);
-    lcd.print(" sec");
-    lcd.setCursor(0, 1);
-    lcd.print("Sleep in ");
-    lcd.print( time_out_sec - ( (millis() - lastSwitchTime)/1000 ) );
-    lcd.print(" Sec");
-    Serial.print("IN LOOP");
-  }
   delay(100);
 }
