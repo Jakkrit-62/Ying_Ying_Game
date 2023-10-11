@@ -273,6 +273,7 @@ while running:
     pygame.display.update()
     time.sleep(0.01)
     print("GameOver = ",gameover)
+    upload = False
 
     while gameover:
         end_time = time.time()
@@ -315,6 +316,9 @@ while running:
                 file.write(str(score) + '\n')
             score_written = True  # กำหนดให้คะแนนถูกเขียนแล้ว
 
-        update_thingspeak(score, highscore)
+        if not upload:
+            update_thingspeak(score, highscore)
+            upload = True
+            
         pygame.display.update()
         time.sleep(0.01)
